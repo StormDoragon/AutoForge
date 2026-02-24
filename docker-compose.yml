@@ -1,0 +1,76 @@
+version: '3.9'
+
+services:
+  autoforge-api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: autoforge-api
+    ports:
+      - "8000:8000"
+    environment:
+      - PYTHONUNBUFFERED=1
+      - PYTHONDONTWRITEBYTECODE=1
+      - MLFLOW_BACKEND_STORE_URI=file:///mlruns
+      - MLFLOW_ARTIFACT_ROOT=/mlruns/artifacts
+    volumes:
+      - ./src:/app/src
+      - ./mlruns:/mlruns
+      - ./artifacts:/app/artifacts
+      - ./exports:/app/exports
+    networks:
+      - autoforge-net
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+    command: uvicorn autoforge.api.app:app --host 0.0.0.0 --port 8000 --reload
+
+  mlflow:
+    image: ghcr.io/mlflow/mlflow:v2.8.1
+    container_name: mlflow-server
+    ports:
+      - "5000:5000"
+    volumes:
+      - ./mlruns:/mlruns
+    networks:
+      - autoforge-net
+    environment:
+      - BACKEND_STORE_URI=file:///mlruns
+      - ARTIFACT_ROOT=/mlruns/artifacts
+      - DEFAULT_ARTIFACT_ROOT=/mlruns/artifacts
+    command: >
+      mlflow server
+      --backend-store-uri file:///mlruns
+      --default-artifact-root /mlruns/artifacts
+      --host 0.0.0.0
+      --port 5000
+
+  postgres:
+    image: postgres:15.5-alpine
+    container_name: autoforge-postgres
+    environment:
+      - POSTGRES_USER=autoforge
+      - POSTGRES_PASSWORD=autoforge_dev
+      - POSTGRES_DB=autoforge_db
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    networks:
+      - autoforge-net
+    ports:
+      - "5432:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U autoforge"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+networks:
+  autoforge-net:
+    driver: bridge
+
+volumes:
+  postgres_data:
+    driver: local

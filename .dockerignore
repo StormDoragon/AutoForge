@@ -1,0 +1,75 @@
+# Git
+.git
+.gitignore
+.gitattributes
+
+# Python
+__pycache__
+*.py[cod]
+*$py.class
+*.so
+.Python
+*.egg-info/
+dist/
+build/
+.eggs/
+*.egg
+pip-log.txt
+pip-delete-this-directory.txt
+.tox/
+.coverage
+.coverage.*
+.cache
+.pytest_cache/
+
+# IDE
+.vscode
+.idea
+*.swp
+*.swo
+*~
+.DS_Store
+
+# Project
+mlruns/
+artifacts/
+exports/
+.env
+.env.local
+*.db
+*.sqlite
+*.sqlite3
+
+# Testing
+.pytest_cache
+htmlcov/
+
+# Documentation
+docs/_build/
+
+# Misc
+node_modules/
+.yarn/
+
+# Docker
+Dockerfile
+docker-compose.yml
+.docker/
+.dockerignore
+
+# CI/CD
+.github/
+.gitlab-ci.yml
+.circleci/
+Jenkinsfile
+
+# Development
+dev-requirements.txt
+poetry.lock
+scripts/
+notebooks/
+
+# Large files
+*.tar.gz
+*.zip
+*.rar
