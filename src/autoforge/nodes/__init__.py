@@ -7,6 +7,11 @@ from autoforge.nodes.preprocess_optuna import (
     make_estimator,
     preprocess_optuna_node,
 )
+from autoforge.nodes.train_mlflow import (
+    compute_metrics,
+    log_model_artifacts,
+    train_mlflow_node,
+)
 
 __all__ = [
     "data_loader_node",
@@ -16,4 +21,7 @@ __all__ = [
     "create_objective",
     "make_estimator",
     "preprocess_optuna_node",
+    "compute_metrics",
+    "log_model_artifacts",
+    "train_mlflow_node",
 ]
