@@ -54,5 +54,20 @@ docker run -p 8000:8000 autoforge
 ## Tests
 
 ```bash
+# If your environment cannot access PyPI (proxy/firewall), you can run tests without installing the package:
+# Option 1: run via Makefile (sets PYTHONPATH to `src`)
+make test-local
+
+# Option 2: run the helper script
+scripts/run-local-tests.sh
+
+# In CI or on a machine with network access, run the full test matrix with installs:
 pytest -q
+```
+If you need to pre-download wheels on a networked machine and transfer them to an offline environment, use `dev-requirements.txt`:
+
+```bash
+pip download -r dev-requirements.txt -d ./wheels
+# then transfer ./wheels to the offline machine and install with:
+# pip install --no-index --find-links ./wheels "autoforge[dev]"
 ```
