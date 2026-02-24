@@ -1,6 +1,12 @@
 """Nodes for AutoForge AutoML pipeline."""
 
 from autoforge.nodes.data_loader import data_loader_node, load_csv, validate_data
+from autoforge.nodes.model_registry import (
+    create_model_info_card,
+    export_model_formats,
+    model_registry_node,
+    register_model_in_registry,
+)
 from autoforge.nodes.preprocess_optuna import (
     build_preprocessor,
     create_objective,
@@ -24,4 +30,8 @@ __all__ = [
     "compute_metrics",
     "log_model_artifacts",
     "train_mlflow_node",
+    "export_model_formats",
+    "register_model_in_registry",
+    "create_model_info_card",
+    "model_registry_node",
 ]
