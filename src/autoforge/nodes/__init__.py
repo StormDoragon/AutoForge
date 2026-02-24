@@ -1,6 +1,12 @@
 """Nodes for AutoForge AutoML pipeline."""
 
 from autoforge.nodes.data_loader import data_loader_node, load_csv, validate_data
+from autoforge.nodes.fastapi_deploy import (
+    PredictionRequest,
+    PredictionResponse,
+    create_fastapi_app,
+    fastapi_deploy_node,
+)
 from autoforge.nodes.model_registry import (
     create_model_info_card,
     export_model_formats,
@@ -34,4 +40,8 @@ __all__ = [
     "register_model_in_registry",
     "create_model_info_card",
     "model_registry_node",
+    "create_fastapi_app",
+    "PredictionRequest",
+    "PredictionResponse",
+    "fastapi_deploy_node",
 ]
