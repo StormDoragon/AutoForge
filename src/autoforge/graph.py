@@ -10,6 +10,7 @@ Defines the complete AutoML workflow combining all nodes:
 
 from __future__ import annotations
 
+from sklearn.model_selection import train_test_split
 from langgraph.graph import StateGraph
 
 from autoforge.nodes.data_loader import data_loader_node
@@ -20,15 +21,103 @@ from autoforge.nodes.train_mlflow import train_mlflow_node
 from autoforge.types import AutoForgeState
 
 
+def data_split_node(state: AutoForgeState) -> AutoForgeState:
+    """Split loaded data into train/test sets.
+
+    This intermediate node:
+    - Extracts target column from dataframe
+    - Splits data into train/test
+    - Returns x_train, x_test, y_train, y_test
+
+    Args:
+        state: AutoForgeState with dataframe and target_column
+
+    Returns:
+        Updated state with train/test splits
+    """
+    dataframe = state.get("dataframe")
+    target_column = state.get("target_column")
+    test_size = state.get("test_size", 0.2)
+    random_state = state.get("random_state", 42)
+
+    if dataframe is None:
+        raise ValueError("dataframe not found in state")
+    if not target_column:
+        raise ValueError("target_column not found in state")
+
+    # Extract features and target
+    y = dataframe[target_column]
+    X = dataframe.drop(columns=[target_column])
+
+    # Split data
+    X_train, X_test, y_train, y_test = train_test_split(
+        X, y, test_size=test_size, random_state=random_state
+    )
+
+    return {
+        **state,
+        "x_train": X_train,
+        "x_test": X_test,
+        "y_train": y_train,
+        "y_test": y_test,
+        "X_train": X_train,  # Also store capitalized for convention
+        "X_test": X_test,
+    }
+
+
+def prepare_deployment_node(state: AutoForgeState) -> AutoForgeState:
+    """Prepare model path and features for deployment.
+
+    This intermediate node:
+    - Extracts model path from exports
+    - Prepares feature column names
+    - Prepares for FastAPI deployment
+
+    Args:
+        state: AutoForgeState with export_formats and feature info
+
+    Returns:
+        Updated state with model_path for deployment
+    """
+    export_formats = state.get("export_formats", {})
+    
+    # Get model path from joblib export
+    model_path = export_formats.get("joblib")
+    if not model_path:
+        # Fallback to sklearn if joblib not available
+        model_path = export_formats.get("sklearn")
+    
+    if not model_path:
+        raise ValueError("No model export format available")
+    
+    # Extract feature column names from X_train if available
+    feature_columns = state.get("feature_columns", [])
+    X_train = state.get("x_train")
+    if X_train is None:
+        X_train = state.get("X_train")
+    
+    if X_train is not None and not feature_columns:
+        feature_columns = X_train.columns.tolist()
+    
+    return {
+        **state,
+        "model_path": model_path,
+        "feature_columns": feature_columns,
+    }
+
+
+
 def create_automl_graph() -> StateGraph:
     """Create LangGraph StateGraph for complete AutoML pipeline.
 
     Workflow stages:
     1. data_loader_node: Load CSV, validate, extract statistics
-    2. preprocess_optuna_node: Feature preprocessing and Optuna tuning
-    3. train_mlflow_node: Model training with MLflow experiment tracking
-    4. model_registry_node: Export formats and MLflow Model Registry
-    5. fastapi_deploy_node: REST API deployment setup
+    2. data_split_node: Split data into train/test sets
+    3. preprocess_optuna_node: Feature preprocessing and Optuna tuning
+    4. train_mlflow_node: Model training with MLflow experiment tracking
+    5. model_registry_node: Export formats and MLflow Model Registry
+    6. prepare_deployment_node: Prepare model path for deployment
+    7. fastapi_deploy_node: REST API deployment setup
 
     Returns:
         StateGraph: Compiled workflow graph ready for invocation
@@ -36,7 +125,7 @@ def create_automl_graph() -> StateGraph:
     Example:
         >>> graph = create_automl_graph()
         >>> state = {
-        ...     "data_path": "data.csv",
+        ...     "csv_path": "data.csv",
         ...     "target_column": "target",
         ...     "task_type": "classification"
         ... }
@@ -47,16 +136,20 @@ def create_automl_graph() -> StateGraph:
 
     # Add all nodes in pipeline sequence
     graph.add_node("data_loader", data_loader_node)
+    graph.add_node("data_split", data_split_node)
     graph.add_node("preprocess_optuna", preprocess_optuna_node)
     graph.add_node("train_mlflow", train_mlflow_node)
     graph.add_node("model_registry", model_registry_node)
+    graph.add_node("prepare_deployment", prepare_deployment_node)
     graph.add_node("fastapi_deploy", fastapi_deploy_node)
 
     # Define edges (sequential workflow)
-    graph.add_edge("data_loader", "preprocess_optuna")
+    graph.add_edge("data_loader", "data_split")
+    graph.add_edge("data_split", "preprocess_optuna")
     graph.add_edge("preprocess_optuna", "train_mlflow")
     graph.add_edge("train_mlflow", "model_registry")
-    graph.add_edge("model_registry", "fastapi_deploy")
+    graph.add_edge("model_registry", "prepare_deployment")
+    graph.add_edge("prepare_deployment", "fastapi_deploy")
 
     # Set entry and exit points
     graph.set_entry_point("data_loader")
@@ -64,6 +157,8 @@ def create_automl_graph() -> StateGraph:
 
     # Compile the graph
     return graph.compile()
+
+
 
 
 def run_automl_pipeline(
@@ -124,7 +219,7 @@ def run_automl_pipeline(
     """
     # Build initial state
     initial_state: AutoForgeState = {
-        "data_path": data_path,
+        "csv_path": data_path,  # Map data_path to csv_path for data_loader_node
         "target_column": target_column,
         "task_type": task_type,
         "feature_columns": feature_columns or [],
